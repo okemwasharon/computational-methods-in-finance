@@ -1,0 +1,44 @@
+# Parameters
+X0 <- 1
+mu <- 0.06
+sigma <- 0.2
+T <- 1
+n_steps <- 100
+dt <- T / n_steps
+
+# Arrays to store errors
+errors <- numeric(n_steps)
+dt_values <- numeric(n_steps)
+
+# Exact solution function
+exact_solution <- function(t) {
+  X0 * exp((mu - sigma^2/2) * t + sigma * sqrt(t) * rnorm(1))
+}
+
+# Simulation and calculation of errors
+for (n in 1:n_steps) {
+  # Euler scheme simulation
+  W <- sqrt(dt) * rnorm(1)
+  Xn <- X0 * exp(mu * (n * dt) + sigma * W)
+  X_exact <- exact_solution(n * dt)
+  
+  # Absolute error
+  errors[n] <- abs(Xn - X_exact)
+  dt_values[n] <- dt * n
+}
+
+# Log-log plot
+plot(log(dt_values), log(errors), type = 'l', col = 'blue',
+     xlab = 'ln(∆)', ylab = 'ln(ε(∆))', main = 'Log-log plot of absolute error for Euler scheme')
+
+# Fit a linear regression line
+fit <- lm(log(errors) ~ log(dt_values))
+abline(fit, col = 'red')
+
+# Display equation of the line
+eq <- substitute(expression(y == a + b * x), 
+                 list(a = format(fit$coefficients[1], digits = 6), 
+                      b = format(fit$coefficients[2], digits = 6), 
+                      x = "ln(∆)", 
+                      y = "ln(ε(∆))"))
+legend("bottomright", legend = eq, bty = "n")
