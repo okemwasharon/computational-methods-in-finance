@@ -1,0 +1,52 @@
+# Load necessary libraries
+library(ggplot2)
+
+# Define parameters and functions for the SDEs
+a1 <- function(t) -0.5  # Coefficient a1(t)
+a2 <- function(t) 0.5   # Coefficient a2(t)
+b1 <- function(t) 1.0   # Coefficient b1(t)
+b2 <- function(t) 0.5   # Coefficient b2(t)
+
+# Initial value and time parameters
+X0 <- 1  # Initial value of X
+T <- 1   # End time
+n <- 1000  # Number of time steps
+dt <- T / n  # Time step size
+
+# Time vector
+t <- seq(0, T, by = dt)
+
+# Function to generate Brownian increments
+set.seed(123)  # Set seed for reproducibility
+dW <- sqrt(dt) * rnorm(n)
+
+# Function to simulate the SDE with multiplicative noise (Euler-Maruyama method)
+simulate_sde_multiplicative <- function(X0, n, dt, a1, a2, b1, b2, dW) {
+  X <- numeric(n + 1)
+  X[1] <- X0
+  for (i in 1:n) {
+    X[i + 1] <- X[i] + (a1(t[i]) * X[i] + a2(t[i])) * dt + (b1(t[i]) * X[i] + b2(t[i])) * dW[i]
+  }
+  return(X)
+}
+
+# Function to simulate the general SDE (Itô) (Euler-Maruyama method)
+simulate_sde_general <- function(X0, n, dt, a1, b1, dW) {
+  X <- numeric(n + 1)
+  X[1] <- X0
+  for (i in 1:n) {
+    X[i + 1] <- X[i] + a1(t[i]) * X[i] * dt + b1(t[i]) * X[i] * dW[i]
+  }
+  return(X)
+}
+
+# Simulate paths
+X_multiplicative <- simulate_sde_multiplicative(X0, n, dt, a1, a2, b1, b2, dW)
+X_general <- simulate_sde_general(X0, n, dt, a1, b1, dW)
+
+# Plot results
+plot(t, X_multiplicative, type = 'l', col = 'blue', lwd = 2, 
+     xlab = 'Time', ylab = 'X(t)', main = 'Comparison of SDEs')
+lines(t, X_general, col = 'red', lwd = 2)
+legend('topleft', legend = c('Multiplicative Noise SDE', 'General SDE'), 
+       col = c('blue', 'red'), lwd = 2)
