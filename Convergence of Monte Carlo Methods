@@ -1,0 +1,117 @@
+# Load necessary libraries
+library(stats)  # Part of base R, no need to install separately
+library(ggplot2)  # For enhanced plotting
+
+# Set parameters
+S0 <- 5       # Initial stock price
+K <- 5        # Strike price
+r <- 0.06     # Risk-free rate
+sigma <- 0.3  # Volatility
+T <- 1        # Time to maturity
+m <- 1000     # Number of time steps
+dt <- T/m     # Time step size
+
+# Define number of simulations to run (reduced for debugging)
+N_values <- c(10, 50, 100, 500, 1000)
+
+# Black-Scholes formula for European call option
+bs_call <- function(S, K, T, r, sigma) {
+  d1 <- (log(S/K) + (r + sigma^2/2)*T) / (sigma*sqrt(T))
+  d2 <- d1 - sigma*sqrt(T)
+  return(S*pnorm(d1) - K*exp(-r*T)*pnorm(d2))
+}
+
+# Black-Scholes formula for Digital call option
+bs_digital <- function(S, K, T, r, sigma) {
+  d2 <- (log(S/K) + (r - sigma^2/2)*T) / (sigma*sqrt(T))
+  return(exp(-r*T)*pnorm(d2))
+}
+
+# Monte Carlo simulation function
+monte_carlo <- function(N, scheme, option_type) {
+  payoffs <- numeric(N)
+  
+  for (i in 1:N) {
+    S <- S0
+    for (j in 1:m) {
+      Z <- rnorm(1)
+      if (scheme == "Euler") {
+        S <- S + r*S*dt + sigma*S*sqrt(dt)*Z
+      } else if (scheme == "Milstein") {
+        S <- S + r*S*dt + sigma*S*sqrt(dt)*Z + 0.5*sigma^2*S*dt*(Z^2 - 1)
+      }
+    }
+    
+    if (option_type == "European") {
+      payoffs[i] <- max(S - K, 0)
+    } else if (option_type == "Digital") {
+      payoffs[i] <- ifelse(S > K, 1, 0)
+    }
+  }
+  
+  price <- exp(-r*T) * mean(payoffs)
+  se <- sd(payoffs) / sqrt(N)
+  return(list(price = price, se = se))
+}
+
+# Calculate Black-Scholes prices
+bs_european <- bs_call(S0, K, T, r, sigma)
+bs_digital <- bs_digital(S0, K, T, r, sigma)
+
+# Initialize results dataframe
+results <- data.frame(N = N_values,
+                      BS_European = bs_european,
+                      BS_Digital = bs_digital)
+
+# Run simulations for each N
+for (i in 1:length(N_values)) {
+  N <- N_values[i]
+  
+  # European Call - Euler
+  eu_euler <- monte_carlo(N, "Euler", "European")
+  results$EU_Euler[i] <- eu_euler$price
+  results$EU_Euler_CI[i] <- 1.96 * eu_euler$se
+  
+  # European Call - Milstein
+  eu_milstein <- monte_carlo(N, "Milstein", "European")
+  results$EU_Milstein[i] <- eu_milstein$price
+  results$EU_Milstein_CI[i] <- 1.96 * eu_milstein$se
+  
+  # Digital Call - Euler
+  dig_euler <- monte_carlo(N, "Euler", "Digital")
+  results$DIG_Euler[i] <- dig_euler$price
+  results$DIG_Euler_CI[i] <- 1.96 * dig_euler$se
+  
+  # Digital Call - Milstein
+  dig_milstein <- monte_carlo(N, "Milstein", "Digital")
+  results$DIG_Milstein[i] <- dig_milstein$price
+  results$DIG_Milstein_CI[i] <- 1.96 * dig_milstein$se
+}
+
+# Print results
+print(results)
+
+# Calculate and print errors
+results$EU_Euler_Error <- abs(results$EU_Euler - results$BS_European)
+results$EU_Milstein_Error <- abs(results$EU_Milstein - results$BS_European)
+results$DIG_Euler_Error <- abs(results$DIG_Euler - results$BS_Digital)
+results$DIG_Milstein_Error <- abs(results$DIG_Milstein - results$BS_Digital)
+
+print(results[, c("N", "EU_Euler_Error", "EU_Milstein_Error", "DIG_Euler_Error", "DIG_Milstein_Error")])
+
+# Prepare data for plotting
+plot_data <- data.frame(
+  N = log10(rep(results$N, 4)),
+  Error = c(results$EU_Euler_Error, results$EU_Milstein_Error, 
+            results$DIG_Euler_Error, results$DIG_Milstein_Error),
+  Method = rep(c("EU_Euler", "EU_Milstein", "DIG_Euler", "DIG_Milstein"), each = length(N_values))
+)
+
+# Plot convergence using ggplot2
+ggplot(plot_data, aes(x = N, y = Error, color = Method)) +
+  geom_line() +
+  labs(title = "Convergence of Monte Carlo Methods", 
+       x = "log10(N)", 
+       y = "Absolute Error") +
+  scale_color_manual(values = c("red", "blue", "green", "purple")) +
+  theme_minimal()
