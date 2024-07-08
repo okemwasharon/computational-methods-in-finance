@@ -1,0 +1,75 @@
+# Load necessary libraries
+library(stats)
+library(pracma)
+library(plotly)
+library(akima)
+
+# Define the Black-Scholes formula for the call option
+black_scholes_call <- function(S, K, T, r, sigma) {
+  d1 <- (log(S / K) + (r + 0.5 * sigma^2) * T) / (sigma * sqrt(T))
+  d2 <- d1 - sigma * sqrt(T)
+  call_price <- S * pnorm(d1) - K * exp(-r * T) * pnorm(d2)
+  return(call_price)
+}
+
+# Define a function to calculate the implied volatility
+implied_volatility <- function(C, S, K, T, r) {
+  objective_function <- function(sigma) {
+    black_scholes_call(S, K, T, r, sigma) - C
+  }
+  implied_vol <- tryCatch({
+    uniroot(objective_function, c(1e-6, 2), tol = 1e-6)$root
+  }, error = function(e) {
+    NA
+  })
+  return(implied_vol)
+}
+
+# Set parameters
+S <- 100  # Current index price
+r <- 0.03  # Constant interest rate
+K <- c(60, 70, 80, 90, 100, 110, 120, 130, 140)  # Strike prices
+T <- c(0.25, 0.5, 1, 1.5)  # Time to maturity in years
+C <- matrix(c(
+  40.2844, 42.4249, 50.8521, 59.1664,
+  30.5281, 33.5355, 42.6656, 51.2181,
+  21.0415, 24.9642, 34.4358, 42.9436,
+  12.2459, 16.9652, 26.4453, 34.7890,
+  5.2025, 10.1717, 19.4706, 27.8938,
+  1.3448, 5.4318, 14.4225, 23.3305,
+  0.2052, 2.7647, 11.2103, 20.7206,
+  0.0216, 1.4204, 9.1497, 19.1828,
+  0.0019, 0.7542, 7.7410, 18.1858
+), nrow = length(K), byrow = TRUE)  # Call prices for different strikes and maturities
+
+# Calculate implied volatilities
+implied_vols <- matrix(0, nrow = length(K), ncol = length(T))
+for (i in 1:length(K)) {
+  for (j in 1:length(T)) {
+    implied_vols[i, j] <- implied_volatility(C[i, j], S, K[i], T[j], r)
+  }
+}
+
+# Remove rows with NAs for interpolation
+valid_indices <- which(!is.na(implied_vols), arr.ind = TRUE)
+valid_K <- K[valid_indices[, 1]]
+valid_T <- T[valid_indices[, 2]]
+valid_implied_vols <- implied_vols[valid_indices]
+
+# Interpolation grid
+K_interp <- seq(min(K), max(K), length.out = 100)
+T_interp <- seq(min(T), max(T), length.out = 100)
+
+# Interpolate
+implied_vols_interp <- interp(x = valid_K, 
+                              y = valid_T, 
+                              z = valid_implied_vols, 
+                              xo = K_interp, yo = T_interp)
+
+# Plot the interpolated surface
+plot_ly(x = ~K_interp, y = ~T_interp, z = ~t(implied_vols_interp$z), type = 'surface') %>%
+  layout(scene = list(
+    xaxis = list(title = 'Strike Price (K)'),
+    yaxis = list(title = 'Time to Maturity (T)'),
+    zaxis = list(title = 'Implied Volatility')
+  ), title = 'Interpolated Implied Volatility Surface')
