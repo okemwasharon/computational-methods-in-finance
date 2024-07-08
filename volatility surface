@@ -73,3 +73,5 @@ plot_ly(x = ~K_interp, y = ~T_interp, z = ~t(implied_vols_interp$z), type = 'sur
     yaxis = list(title = 'Time to Maturity (T)'),
     zaxis = list(title = 'Implied Volatility')
   ), title = 'Interpolated Implied Volatility Surface')
+
+
