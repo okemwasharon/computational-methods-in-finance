@@ -1,3 +1,10 @@
+# Load necessary libraries
+library(stats)   # for normal distribution functions
+library(plotly)  # for 3D plotting
+install.packages("akima")
+library(akima)
+
+
 # Define the Black-Scholes formula for the call option
 black_scholes_call <- function(S, K, T, r, sigma) {
   d1 <- (log(S / K) + (r + 0.5 * sigma^2) * T) / (sigma * sqrt(T))
@@ -79,5 +86,6 @@ plot_ly(x = ~K_interp, y = ~T_interp, z = ~t(implied_vols_interp$z), type = 'sur
     yaxis = list(title = 'Time to Maturity (T)'),
     zaxis = list(title = 'Implied Volatility')
   ), title = 'Interpolated Implied Volatility Surface')
+
 
 
