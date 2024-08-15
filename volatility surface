@@ -1,9 +1,3 @@
-# Load necessary libraries
-library(stats)
-library(pracma)
-library(plotly)
-library(akima)
-
 # Define the Black-Scholes formula for the call option
 black_scholes_call <- function(S, K, T, r, sigma) {
   d1 <- (log(S / K) + (r + 0.5 * sigma^2) * T) / (sigma * sqrt(T))
@@ -12,17 +6,29 @@ black_scholes_call <- function(S, K, T, r, sigma) {
   return(call_price)
 }
 
-# Define a function to calculate the implied volatility
-implied_volatility <- function(C, S, K, T, r) {
-  objective_function <- function(sigma) {
-    black_scholes_call(S, K, T, r, sigma) - C
+# Define the derivative of the Black-Scholes formula with respect to sigma
+black_scholes_vega <- function(S, K, T, r, sigma) {
+  d1 <- (log(S / K) + (r + 0.5 * sigma^2) * T) / (sigma * sqrt(T))
+  vega <- S * dnorm(d1) * sqrt(T)
+  return(vega)
+}
+
+# Define a function to calculate the implied volatility using Newton-Raphson method
+implied_volatility <- function(C, S, K, T, r, initial_guess = 0.2, tol = 1e-6, max_iter = 100) {
+  sigma <- initial_guess
+  for (i in 1:max_iter) {
+    price <- black_scholes_call(S, K, T, r, sigma)
+    vega <- black_scholes_vega(S, K, T, r, sigma)
+    price_diff <- price - C
+    if (abs(price_diff) < tol) {
+      return(sigma)
+    }
+    sigma <- sigma - price_diff / vega
+    if (sigma <= 0) {
+      return(NA)  # Implied volatility cannot be negative
+    }
   }
-  implied_vol <- tryCatch({
-    uniroot(objective_function, c(1e-6, 2), tol = 1e-6)$root
-  }, error = function(e) {
-    NA
-  })
-  return(implied_vol)
+  return(NA)  # Return NA if the method did not converge
 }
 
 # Set parameters
