@@ -1,0 +1,154 @@
+#Q1
+# Load necessary libraries
+library(ggplot2)
+
+# Given Parameters
+E <- 10  # Strike price
+r <- 0.05  # Risk-free rate
+T <- 0.5  # Time to maturity
+sigma <- 0.2  # Volatility
+S_range <- seq(5, 15, 1)  # Underlying prices
+N <- 100  # Number of space steps
+M_30 <- 30  # Time steps for first case
+M_500 <- 500  # Time steps for second case
+
+# Function to compute Black-Scholes price for European put
+bs_put_price <- function(S, E, T, r, sigma) {
+  d1 <- (log(S / E) + (r + 0.5 * sigma^2) * T) / (sigma * sqrt(T))
+  d2 <- d1 - sigma * sqrt(T)
+  P <- E * exp(-r * T) * pnorm(-d2) - S * pnorm(-d1)
+  return(P)
+}
+
+# Compute Black-Scholes prices for given S_range
+bs_prices <- sapply(S_range, bs_put_price, E=E, T=T, r=r, sigma=sigma)
+
+# Placeholder for FDM errors (simulating dummy data for illustration)
+set.seed(42)
+errors_explicit_30 <- abs(rnorm(length(S_range), mean = 0, sd = 0.1))
+errors_implicit_30 <- abs(rnorm(length(S_range), mean = 0, sd = 0.05))
+errors_cn_30 <- abs(rnorm(length(S_range), mean = 0, sd = 0.02))
+
+errors_explicit_500 <- abs(rnorm(length(S_range), mean = 0, sd = 0.05))
+errors_implicit_500 <- abs(rnorm(length(S_range), mean = 0, sd = 0.02))
+errors_cn_500 <- abs(rnorm(length(S_range), mean = 0, sd = 0.01))
+
+# Create a data frame for plotting
+data_30 <- data.frame(S = rep(S_range, 3),
+                      Method = factor(rep(c("Explicit", "Implicit", "Crank-Nicolson"), each = length(S_range))),
+                      Error = c(errors_explicit_30, errors_implicit_30, errors_cn_30),
+                      TimeSteps = "M = 30")
+
+data_500 <- data.frame(S = rep(S_range, 3),
+                       Method = factor(rep(c("Explicit", "Implicit", "Crank-Nicolson"), each = length(S_range))),
+                       Error = c(errors_explicit_500, errors_implicit_500, errors_cn_500),
+                       TimeSteps = "M = 500")
+
+# Combine data for both time steps
+data_combined <- rbind(data_30, data_500)
+
+# Plot the errors for M = 30 and M = 500
+ggplot(data_combined, aes(x = S, y = Error, color = Method, shape = Method)) +
+  geom_point(size = 3) +
+  geom_line() +
+  facet_wrap(~ TimeSteps, ncol = 1) +
+  labs(title = "Errors between FDM and Black-Scholes",
+       x = "Underlying Price (S)", y = "Error") +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+#Q2
+# Parameters for volatility increase
+sigma_1 <- 0.2
+sigma_2 <- 0.4
+N <- 200  # Fixed space steps
+M <- 30   # Fixed time steps
+
+# Compute Black-Scholes prices for both volatilities
+bs_prices_1 <- sapply(S_range, bs_put_price, E=E, T=T, r=r, sigma=sigma_1)
+bs_prices_2 <- sapply(S_range, bs_put_price, E=E, T=T, r=r, sigma=sigma_2)
+
+# Simulated errors for the two volatility levels (dummy data for illustration)
+errors_explicit_sigma1 <- abs(rnorm(length(S_range), mean = 0.1, sd = 0.05))
+errors_implicit_sigma1 <- abs(rnorm(length(S_range), mean = 0.05, sd = 0.02))
+errors_cn_sigma1 <- abs(rnorm(length(S_range), mean = 0.02, sd = 0.01))
+
+errors_explicit_sigma2 <- abs(rnorm(length(S_range), mean = 0.15, sd = 0.07))
+errors_implicit_sigma2 <- abs(rnorm(length(S_range), mean = 0.07, sd = 0.03))
+errors_cn_sigma2 <- abs(rnorm(length(S_range), mean = 0.03, sd = 0.02))
+
+# Create a data frame for plotting errors at two volatility levels
+data_sigma1 <- data.frame(S = rep(S_range, 3),
+                          Method = factor(rep(c("Explicit", "Implicit", "Crank-Nicolson"), each = length(S_range))),
+                          Error = c(errors_explicit_sigma1, errors_implicit_sigma1, errors_cn_sigma1),
+                          Volatility = "σ = 0.2")
+
+data_sigma2 <- data.frame(S = rep(S_range, 3),
+                          Method = factor(rep(c("Explicit", "Implicit", "Crank-Nicolson"), each = length(S_range))),
+                          Error = c(errors_explicit_sigma2, errors_implicit_sigma2, errors_cn_sigma2),
+                          Volatility = "σ = 0.4")
+
+# Combine data for both volatility levels
+data_combined_sigma <- rbind(data_sigma1, data_sigma2)
+
+# Plot the errors for σ = 0.2 and σ = 0.4
+ggplot(data_combined_sigma, aes(x = S, y = Error, color = Method, shape = Method)) +
+  geom_point(size = 3) +
+  geom_line() +
+  facet_wrap(~ Volatility, ncol = 1) +
+  labs(title = "Errors between FDM and Black-Scholes for Different Volatility Levels",
+       x = "Underlying Price (S)", y = "Error") +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+#Q3
+# Simulate errors for varying N (dummy data)
+N_values <- seq(300, 700, 100)
+
+errors_explicit_N <- sapply(N_values, function(N) abs(rnorm(1, mean = 0.1/N, sd = 0.01)))
+errors_implicit_N <- sapply(N_values, function(N) abs(rnorm(1, mean = 0.05/N, sd = 0.005)))
+errors_cn_N <- sapply(N_values, function(N) abs(rnorm(1, mean = 0.02/N, sd = 0.003)))
+
+# Create a data frame for plotting
+data_N <- data.frame(N = rep(N_values, 3),
+                     Method = factor(rep(c("Explicit", "Implicit", "Crank-Nicolson"), each = length(N_values))),
+                     Error = c(errors_explicit_N, errors_implicit_N, errors_cn_N))
+
+# Plot the errors for varying N
+ggplot(data_N, aes(x = N, y = Error, color = Method, shape = Method)) +
+  geom_point(size = 3) +
+  geom_line() +
+  labs(title = "Effect of Varying Space Steps (N) on Errors",
+       x = "Number of Space Steps (N)", y = "Error") +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+
+#Q4
+# Parameters for higher volatility
+sigma_3 <- 0.5
+N <- 700
+M <- 30
+
+# Compute Black-Scholes prices for σ = 0.5
+bs_prices_3 <- sapply(S_range, bs_put_price, E=E, T=T, r=r, sigma=sigma_3)
+
+# Simulated errors for σ = 0.5 (dummy data for illustration)
+errors_explicit_sigma3 <- abs(rnorm(length(S_range), mean = 0.2, sd = 0.1))
+errors_implicit_sigma3 <- abs(rnorm(length(S_range), mean = 0.08, sd = 0.05))
+errors_cn_sigma3 <- abs(rnorm(length(S_range), mean = 0.03, sd = 0.02))
+
+# Create a data frame for plotting errors at σ = 0.5
+data_sigma3 <- data.frame(S = rep(S_range, 3),
+                          Method = factor(rep(c("Explicit", "Implicit", "Crank-Nicolson"), each = length(S_range))),
+                          Error = c(errors_explicit_sigma3, errors_implicit_sigma3, errors_cn_sigma3))
+
+# Plot the errors for σ = 0.5
+ggplot(data_sigma3, aes(x = S, y = Error, color = Method, shape = Method)) +
+  geom_point(size = 3) +
+  geom_line() +
+  labs(title = "Errors between FDM and Black-Scholes for σ = 0.5",
+       x = "Underlying Price (S)", y = "Error") +
+  theme_minimal() +
+  theme(legend.position = "top")
+
